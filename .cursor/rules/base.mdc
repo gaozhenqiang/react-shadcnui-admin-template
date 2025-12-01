@@ -1,0 +1,77 @@
+---
+alwaysApply: true
+---
+
+# 基础信息
+
+组件库：ui.shadcn、Tailwind css
+
+# 代码质量要求
+
+1. 尽量复用已有类型，不要写相同的重复类型。
+2. 一定要复用已有的组件，不能重复造轮子，先去 src/components 目录下找。
+3. 代码必须符合组件库的设计规范，不能随意更改样式。
+4. 代码必须符合 lint 规范，不能有 lint 错误。
+5. 代码必须符合 prettier 规范，不能有 prettier 错误。
+6. 代码必须符合 typescript 规范，不能有 typescript 错误。
+7. 代码必须符合最佳实践，不能有性能问题。
+8. 代码必须符合安全规范，不能有安全漏洞。
+9. 代码必须符合可维护性规范，不能有难以维护的代码。
+10. 代码必须符合可读性规范，不能有难以阅读的代码，代码注释要全。
+11. 页面顶部要有注释，包含组件名称、功能描述，其它信息就没必要了。
+
+# 创建 tsx 组件模板
+
+- 组件名
+  - index.tsx
+
+## tsx：
+
+```tsx
+#set($processedFileName = ${NAME})
+import {
+  ForwardedRef,
+  forwardRef,
+  memo,
+} from 'react';
+
+export interface I${processedFileName}Ref {}
+
+export interface I${processedFileName}Props {
+}
+
+const $processedFileName = memo(
+  forwardRef(
+    (
+      {}: I${processedFileName}Props,
+      ref: ForwardedRef<I${processedFileName}Ref>,
+    ) => {
+      return (
+        <div></div>
+      );
+    },
+  ),
+);
+
+export default ${processedFileName};
+```
+
+# 目录规范
+
+一个页面要包含多个组件，只有这个页面用到的私有组件就放到这个页面的文件夹下面，如：
+
+- pages
+  - dashboard
+    - index.tsx
+    - components
+      - chart
+        - index.tsx
+      - stats
+        - index.tsx
+
+如果一个组件是多个页面公用的，就放到 src/components 目录下，如：
+- components
+  - button
+    - index.tsx
+  - modal
+    - index.tsx
