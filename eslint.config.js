@@ -3,6 +3,7 @@ import js from '@eslint/js'
 import pluginQuery from '@tanstack/eslint-plugin-query'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
+import unusedImports from 'eslint-plugin-unused-imports'
 import { defineConfig } from 'eslint/config'
 import tseslint from 'typescript-eslint'
 
@@ -22,6 +23,7 @@ export default defineConfig(
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
+      'unused-imports': unusedImports,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -31,7 +33,11 @@ export default defineConfig(
       ],
       'no-console': 'error',
       'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': [
+      '@typescript-eslint/no-unused-vars': 'off',
+      // Auto-remove unused imports
+      'unused-imports/no-unused-imports': 'error',
+      // Check for unused variables
+      'unused-imports/no-unused-vars': [
         'error',
         {
           args: 'all',
