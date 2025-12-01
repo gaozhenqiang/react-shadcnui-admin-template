@@ -31,7 +31,7 @@ export default defineConfig(
         'warn',
         { allowConstantExport: true },
       ],
-      'no-console': 'error',
+      'no-console': 'off', // 允许使用 console
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       // Auto-remove unused imports
@@ -42,7 +42,7 @@ export default defineConfig(
         {
           args: 'all',
           argsIgnorePattern: '^_',
-          caughtErrors: 'all',
+          caughtErrors: 'none', // 允许 catch 块中的错误变量不使用
           caughtErrorsIgnorePattern: '^_',
           destructuredArrayIgnorePattern: '^_',
           varsIgnorePattern: '^_',
@@ -60,6 +60,10 @@ export default defineConfig(
       ],
       // Prevent duplicate imports from the same module
       'no-duplicate-imports': 'error',
+      // Allow usage of 'any' type
+      '@typescript-eslint/no-explicit-any': 'off',
+      // Allow usage of @ts-ignore and other TS comment directives
+      '@typescript-eslint/ban-ts-comment': 'off',
     },
   }
 )

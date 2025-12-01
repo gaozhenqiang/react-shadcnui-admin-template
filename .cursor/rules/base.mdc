@@ -75,3 +75,50 @@ export default ${processedFileName};
     - index.tsx
   - modal
     - index.tsx
+
+如果一个页面或者组件，功能比较多，需要跨多个组件共享状态，那么一定到创建要给store来管理组件的状态，如：
+- chat
+-- components
+   - message-list
+     -- index.tsx
+   - message-input
+     -- index.tsx
+-- index.tsx
+-- store
+   - index.ts
+
+# store
+
+可以用封装的工具函数来创建持久化store：
+
+/src/lib/store.ts
+
+用法：
+
+```tsx
+import { createPersistStore } from '@/lib/store'
+
+export interface IUserStore {
+  ...
+}
+
+const state: IUserStore = {
+  ...
+}
+
+export const useUserStore = createPersistStore(
+  {
+    ...state,
+  },
+  (set, _get) => {
+    const methods = {
+      ...
+    }
+
+    return methods
+  },
+  {
+    name: 'User',
+  },
+)
+```
