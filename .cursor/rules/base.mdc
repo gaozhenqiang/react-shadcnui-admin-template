@@ -6,6 +6,10 @@ alwaysApply: true
 
 组件库：ui.shadcn、Tailwind css
 
+# 语言
+
+中文，用中文回答问题
+
 # 代码质量要求
 
 1. 尽量复用已有类型，不要写相同的重复类型。
@@ -77,17 +81,60 @@ export default ${processedFileName};
     - index.tsx
 
 如果一个页面或者组件，功能比较多，需要跨多个组件共享状态，那么一定到创建要给store来管理组件的状态，如：
-- chat
--- components
-   - message-list
-     -- index.tsx
-   - message-input
-     -- index.tsx
--- index.tsx
--- store
-   - index.ts
+- chat // chat组件或页面
+  -- components // chat 组件私有组件
+     - message-list
+       -- index.tsx
+     - message-input
+       -- index.tsx
+  -- index.tsx // chat 组件或页面主文件
+  -- chatStore // 存放 chat 相关的 store
+     - index.ts // chatStore 主文件
+     - chatStore.utils.ts // chatStore 工具函数
+     - chatStore.types.ts // chatStore 类型定义
+     - chatStore.constants.ts // chatStore 常量定义
 
 # store
+
+## 普通 store
+
+方法不需要写类型，只有属性写类型即可，然后方法写到 methods 里面。
+这样方法类型可以自动推断，然后也可以在内部使用 methods.fn() 互相调用，并且类型安全。
+
+```ts
+import lodash from 'lodash'
+import { create } from 'zustand'
+import { combine } from 'zustand/middleware'
+
+export interface IAccountStore {
+  ...
+}
+
+const store: IAccountStore = {
+  ...
+}
+
+function getStore() {
+  return lodash.cloneDeep(store)
+}
+
+// 视频发布所有组件的共享状态和方法
+export const useAccountStore = create(
+  combine(
+    {
+      ...getStore(),
+    },
+    (set, get) => {
+      const methods = {
+        ...
+      }
+      return methods
+    },
+  ),
+)
+```
+
+## 持久化 store
 
 可以用封装的工具函数来创建持久化store：
 
@@ -95,7 +142,7 @@ export default ${processedFileName};
 
 用法：
 
-```tsx
+```ts
 import { createPersistStore } from '@/lib/store'
 
 export interface IUserStore {

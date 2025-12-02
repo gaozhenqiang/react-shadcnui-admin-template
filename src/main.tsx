@@ -22,7 +22,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: (failureCount, error) => {
-        // eslint-disable-next-line no-console
+         
         if (import.meta.env.DEV) console.log({ failureCount, error })
 
         if (failureCount >= 0 && import.meta.env.DEV) return false
@@ -61,6 +61,7 @@ const queryClient = new QueryClient({
           toast.error('Internal Server Error!')
           // Only navigate to error page in production to avoid disrupting HMR in development
           if (import.meta.env.PROD) {
+            // @ts-ignore
             router.navigate({ to: '/500' })
           }
         }
