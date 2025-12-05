@@ -169,3 +169,45 @@ export const useUserStore = createPersistStore(
   },
 )
 ```
+
+注意事项，注意，持久化的store使用了的 indexedDB，读取数据是异步的，需要通过_hasHydrated 来同步
+
+```tsx
+const {
+  _hasHydrated,
+} = usePublishDialogStorageStore(
+  useShallow(state => ({
+    _hasHydrated: state._hasHydrated,
+  })),
+)
+
+useEffect(() => {
+  if (_hasHydrated) {
+    console.log('持久化数据同步完成')
+  }
+}, [_hasHydrated]);
+
+```
+
+## store 使用
+
+使用useShallow，用于优化
+
+
+```tsx
+const {
+  _hasHydrated,
+} = usePublishDialogStorageStore(
+  useShallow(state => ({
+    _hasHydrated: state._hasHydrated,
+  })),
+)
+
+```
+
+# 注意事项
+
+1. 每次开发啥功能必须要去 `src\components` 查看是否有可用的全局组件 。
+2. 如果加了全局组件，必须在 `src\components\README.md` 添加文档。
+3. 创建页面注意参考文档 `src\docs\开发注意事项.md`
+4. 如果有表单，去 `src\lib\regulars.ts`找一下有没有对应的正则校验，最典型的，手机号、身份证号码。
