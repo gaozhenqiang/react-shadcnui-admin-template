@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useState, useEffect } from 'react'
 import { Link, useLocation } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import {
@@ -89,10 +89,27 @@ function SidebarMenuCollapsible({
   href: string
 }) {
   const { setOpenMobile } = useSidebar()
+  // 检查是否有子菜单处于激活状态
+  const hasActiveChild = item.items?.some((subItem) =>
+    checkIsActive(href, subItem)
+  )
+
+  // 使用受控状态管理展开/收起
+  const [isOpen, setIsOpen] = useState(hasActiveChild)
+
+  // 当有激活的子菜单时，自动展开
+  useEffect(() => {
+    if (hasActiveChild) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 此处需要根据路由变化同步展开状态
+      setIsOpen(true)
+    }
+  }, [hasActiveChild])
+
   return (
     <Collapsible
       asChild
-      defaultOpen={checkIsActive(href, item, true)}
+      open={isOpen}
+      onOpenChange={setIsOpen}
       className='group/collapsible'
     >
       <SidebarMenuItem>

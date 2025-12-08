@@ -18,11 +18,17 @@ import {
 type DataTablePaginationProps<TData> = {
   table: Table<TData>
   className?: string
+  /** 服务端分页时的页码变化回调（pageIndex 从 0 开始） */
+  onPageChange?: (pageIndex: number) => void
+  /** 服务端分页时的每页条数变化回调 */
+  onPageSizeChange?: (pageSize: number) => void
 }
 
 export function DataTablePagination<TData>({
   table,
   className,
+  onPageChange,
+  onPageSizeChange,
 }: DataTablePaginationProps<TData>) {
   const currentPage = table.getState().pagination.pageIndex + 1
   const totalPages = table.getPageCount()
@@ -39,13 +45,15 @@ export function DataTablePagination<TData>({
     >
       <div className='flex w-full items-center justify-between'>
         <div className='flex w-[100px] items-center justify-center text-sm font-medium @2xl/content:hidden'>
-          Page {currentPage} of {totalPages}
+          第 {currentPage} / {totalPages} 页
         </div>
         <div className='flex items-center gap-2 @max-2xl/content:flex-row-reverse'>
           <Select
             value={`${table.getState().pagination.pageSize}`}
             onValueChange={(value) => {
-              table.setPageSize(Number(value))
+              const newSize = Number(value)
+              table.setPageSize(newSize)
+              onPageSizeChange?.(newSize)
             }}
           >
             <SelectTrigger className='h-8 w-[70px]'>
@@ -59,35 +67,42 @@ export function DataTablePagination<TData>({
               ))}
             </SelectContent>
           </Select>
-          <p className='hidden text-sm font-medium sm:block'>Rows per page</p>
+          <p className='hidden text-sm font-medium sm:block'>每页行数</p>
         </div>
       </div>
 
       <div className='flex items-center sm:space-x-6 lg:space-x-8'>
         <div className='flex w-[100px] items-center justify-center text-sm font-medium @max-3xl/content:hidden'>
-          Page {currentPage} of {totalPages}
+          第 {currentPage} / {totalPages} 页
         </div>
         <div className='flex items-center space-x-2'>
           <Button
             variant='outline'
             className='size-8 p-0 @max-md/content:hidden'
-            onClick={() => table.setPageIndex(0)}
+            onClick={() => {
+              table.setPageIndex(0)
+              onPageChange?.(0)
+            }}
             disabled={!table.getCanPreviousPage()}
           >
-            <span className='sr-only'>Go to first page</span>
+            <span className='sr-only'>跳转到第一页</span>
             <DoubleArrowLeftIcon className='h-4 w-4' />
           </Button>
           <Button
             variant='outline'
             className='size-8 p-0'
-            onClick={() => table.previousPage()}
+            onClick={() => {
+              const newIndex = table.getState().pagination.pageIndex - 1
+              table.previousPage()
+              onPageChange?.(newIndex)
+            }}
             disabled={!table.getCanPreviousPage()}
           >
-            <span className='sr-only'>Go to previous page</span>
+            <span className='sr-only'>上一页</span>
             <ChevronLeftIcon className='h-4 w-4' />
           </Button>
 
-          {/* Page number buttons */}
+          {/* 页码按钮 */}
           {pageNumbers.map((pageNumber, index) => (
             <div key={`${pageNumber}-${index}`} className='flex items-center'>
               {pageNumber === '...' ? (
@@ -96,9 +111,13 @@ export function DataTablePagination<TData>({
                 <Button
                   variant={currentPage === pageNumber ? 'default' : 'outline'}
                   className='h-8 min-w-8 px-2'
-                  onClick={() => table.setPageIndex((pageNumber as number) - 1)}
+                  onClick={() => {
+                    const newIndex = (pageNumber as number) - 1
+                    table.setPageIndex(newIndex)
+                    onPageChange?.(newIndex)
+                  }}
                 >
-                  <span className='sr-only'>Go to page {pageNumber}</span>
+                  <span className='sr-only'>跳转到第 {pageNumber} 页</span>
                   {pageNumber}
                 </Button>
               )}
@@ -108,19 +127,27 @@ export function DataTablePagination<TData>({
           <Button
             variant='outline'
             className='size-8 p-0'
-            onClick={() => table.nextPage()}
+            onClick={() => {
+              const newIndex = table.getState().pagination.pageIndex + 1
+              table.nextPage()
+              onPageChange?.(newIndex)
+            }}
             disabled={!table.getCanNextPage()}
           >
-            <span className='sr-only'>Go to next page</span>
+            <span className='sr-only'>下一页</span>
             <ChevronRightIcon className='h-4 w-4' />
           </Button>
           <Button
             variant='outline'
             className='size-8 p-0 @max-md/content:hidden'
-            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+            onClick={() => {
+              const lastIndex = table.getPageCount() - 1
+              table.setPageIndex(lastIndex)
+              onPageChange?.(lastIndex)
+            }}
             disabled={!table.getCanNextPage()}
           >
-            <span className='sr-only'>Go to last page</span>
+            <span className='sr-only'>跳转到最后一页</span>
             <DoubleArrowRightIcon className='h-4 w-4' />
           </Button>
         </div>
