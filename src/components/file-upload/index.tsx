@@ -22,6 +22,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { uploadToOss } from '@/lib/request'
+import { createGetUploadUrl } from './upload'
+
+// 默认的获取上传 URL 函数
+const defaultGetUploadUrl = createGetUploadUrl()
 
 export interface FileUploadRef {
   /** 清除已上传的文件 */
@@ -39,11 +43,24 @@ export interface FileUploadSuccessInfo {
   duration?: number
 }
 
+export interface ImageValidationConfig {
+  /** 期望的图片宽高比（宽/高），如 5/7 表示一寸照片 */
+  aspectRatio: number
+  /** 宽高比容差，默认 0.1 表示 ±10% */
+  aspectRatioTolerance?: number
+  /** 最小图片宽度（像素） */
+  minWidth?: number
+  /** 最小图片高度（像素） */
+  minHeight?: number
+  /** 自定义错误提示 */
+  errorMessage?: string
+}
+
 export interface FileUploadProps {
   /** 允许的文件扩展名，如 ['.mp4', '.pdf'] */
   accept?: string[]
-  /** 获取上传URL的函数 */
-  getUploadUrl: (fileType: string) => Promise<{
+  /** 获取上传URL的函数（可选，默认使用内置函数） */
+  getUploadUrl?: (fileType: string) => Promise<{
     uploadUrl: string
     fileUrl: string
     headers?: Record<string, string>
@@ -70,6 +87,8 @@ export interface FileUploadProps {
   enablePreview?: boolean
   /** 预览类型 */
   previewType?: 'auto' | 'image' | 'video' | 'none'
+  /** 图片尺寸校验配置（仅对图片文件生效） */
+  imageValidation?: ImageValidationConfig
 }
 
 // 视频扩展名列表
@@ -122,11 +141,78 @@ function getVideoDuration(file: File): Promise<number> {
   })
 }
 
+/**
+ * 校验图片尺寸
+ * @param file 图片文件
+ * @param config 校验配置
+ * @returns Promise<{ valid: boolean; message?: string }>
+ */
+function validateImageSize(
+  file: File,
+  config: ImageValidationConfig
+): Promise<{ valid: boolean; message?: string }> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const { width, height } = img
+      const ratio = width / height
+      const tolerance = config.aspectRatioTolerance ?? 0.1
+
+      // 检查宽高比
+      const minRatio = config.aspectRatio * (1 - tolerance)
+      const maxRatio = config.aspectRatio * (1 + tolerance)
+
+      if (ratio < minRatio || ratio > maxRatio) {
+        const message =
+          config.errorMessage ||
+          `图片比例不符合要求。当前比例 ${ratio.toFixed(2)}，期望比例约为 ${config.aspectRatio.toFixed(2)}`
+        resolve({ valid: false, message })
+        URL.revokeObjectURL(img.src)
+        return
+      }
+
+      // 检查最小尺寸
+      if (config.minWidth && width < config.minWidth) {
+        resolve({
+          valid: false,
+          message: `图片宽度过小，当前 ${width}px，最小要求 ${config.minWidth}px`,
+        })
+        URL.revokeObjectURL(img.src)
+        return
+      }
+
+      if (config.minHeight && height < config.minHeight) {
+        resolve({
+          valid: false,
+          message: `图片高度过小，当前 ${height}px，最小要求 ${config.minHeight}px`,
+        })
+        URL.revokeObjectURL(img.src)
+        return
+      }
+
+      resolve({ valid: true })
+      URL.revokeObjectURL(img.src)
+    }
+
+    img.onerror = () => {
+      resolve({ valid: false, message: '无法读取图片信息' })
+    }
+
+    img.src = URL.createObjectURL(file)
+  })
+}
+
+// 判断是否为图片文件
+function isImageFile(fileName: string): boolean {
+  const ext = `.${fileName.split('.').pop()?.toLowerCase()}`
+  return IMAGE_EXTS.includes(ext)
+}
+
 export const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(
   (
     {
       accept = [],
-      getUploadUrl,
+      getUploadUrl = defaultGetUploadUrl,
       onSuccess,
       onError,
       onClear,
@@ -138,6 +224,7 @@ export const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(
       className = '',
       enablePreview = true,
       previewType = 'auto',
+      imageValidation,
     },
     ref
   ) => {
@@ -146,7 +233,9 @@ export const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(
     const [fileUrl, setFileUrl] = useState(defaultFileUrl)
     const [fileName, setFileName] = useState(defaultFileName)
     const [previewOpen, setPreviewOpen] = useState(false)
+    const [isDragging, setIsDragging] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const dropZoneRef = useRef<HTMLDivElement>(null)
 
     // 暴露给父组件的方法
     useImperativeHandle(ref, () => ({
@@ -165,12 +254,9 @@ export const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(
       onClear?.()
     }, [onClear])
 
-    // 处理文件选择
-    const handleFileChange = useCallback(
-      async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (!file) return
-
+    // 处理文件上传（通用函数，供 input 和拖拽使用）
+    const processFile = useCallback(
+      async (file: File) => {
         // 验证文件扩展名
         const fileExt = `.${file.name.split('.').pop()?.toLowerCase()}`
         if (accept.length > 0 && !accept.includes(fileExt)) {
@@ -183,6 +269,15 @@ export const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(
         if (fileSizeMB > maxSize) {
           toast.error(`文件大小不能超过 ${maxSize}MB`)
           return
+        }
+
+        // 如果是图片文件且配置了图片校验，进行尺寸校验
+        if (imageValidation && isImageFile(file.name)) {
+          const validation = await validateImageSize(file, imageValidation)
+          if (!validation.valid) {
+            toast.error(validation.message || '图片尺寸不符合要求')
+            return
+          }
         }
 
         setUploading(true)
@@ -225,18 +320,83 @@ export const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(
         } catch (error) {
           const err = error instanceof Error ? error : new Error('上传失败')
           onError?.(err)
-          // 显示具体的错误信息，而不是通用的"文件上传失败"
           toast.error(err.message || '文件上传失败')
           console.error('Upload error:', error)
         } finally {
           setUploading(false)
-          // 清空 input，允许重新选择同一文件
-          if (fileInputRef.current) {
-            fileInputRef.current.value = ''
-          }
         }
       },
-      [accept, maxSize, getUploadUrl, onSuccess, onError]
+      [accept, maxSize, getUploadUrl, onSuccess, onError, imageValidation]
+    )
+
+    // 处理 input 文件选择
+    const handleFileChange = useCallback(
+      async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        await processFile(file)
+
+        // 清空 input，允许重新选择同一文件
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+      },
+      [processFile]
+    )
+
+    // 拖拽事件处理
+    const handleDragEnter = useCallback(
+      (e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (!disabled && !uploading) {
+          setIsDragging(true)
+        }
+      },
+      [disabled, uploading]
+    )
+
+    const handleDragOver = useCallback(
+      (e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (!disabled && !uploading) {
+          setIsDragging(true)
+        }
+      },
+      [disabled, uploading]
+    )
+
+    const handleDragLeave = useCallback(
+      (e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        // 只有当离开整个拖拽区域时才取消高亮
+        if (
+          dropZoneRef.current &&
+          !dropZoneRef.current.contains(e.relatedTarget as Node)
+        ) {
+          setIsDragging(false)
+        }
+      },
+      []
+    )
+
+    const handleDrop = useCallback(
+      async (e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragging(false)
+
+        if (disabled || uploading) return
+
+        const files = e.dataTransfer.files
+        if (files.length > 0) {
+          await processFile(files[0])
+        }
+      },
+      [disabled, uploading, processFile]
     )
 
     // 触发文件选择
@@ -330,21 +490,39 @@ export const FileUpload = forwardRef<FileUploadRef, FileUploadProps>(
             </Button>
           </div>
         ) : (
-          /* 上传按钮 */
-          <Button
-            type='button'
-            variant='outline'
-            className='w-full'
-            disabled={disabled || uploading}
+          /* 拖拽上传区域 */
+          <div
+            ref={dropZoneRef}
+            className={cn(
+              'relative flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors',
+              isDragging
+                ? 'border-primary bg-primary/5'
+                : 'border-muted-foreground/25 hover:border-primary/50',
+              (disabled || uploading) && 'cursor-not-allowed opacity-50'
+            )}
             onClick={triggerFileSelect}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
           >
             {uploading ? (
-              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+              <Loader2 className='h-8 w-8 animate-spin text-muted-foreground' />
             ) : (
-              <Upload className='mr-2 h-4 w-4' />
+              <Upload
+                className={cn(
+                  'h-8 w-8',
+                  isDragging ? 'text-primary' : 'text-muted-foreground'
+                )}
+              />
             )}
-            {uploading ? '上传中...' : buttonText}
-          </Button>
+            <p className='mt-2 text-sm text-muted-foreground'>
+              {uploading ? '上传中...' : isDragging ? '释放文件以上传' : buttonText}
+            </p>
+            <p className='mt-1 text-xs text-muted-foreground/70'>
+              点击或拖拽文件到此区域
+            </p>
+          </div>
         )}
 
         {/* 上传进度 */}

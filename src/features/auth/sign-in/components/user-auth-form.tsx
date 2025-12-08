@@ -6,7 +6,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { Loader2, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
 import { IconFacebook, IconGithub } from '@/assets/brand-icons'
-import { useAuthStore } from '@/stores/auth-store'
+import { useUserStore } from '@/stores/user-store'
 import { sleep, cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -41,7 +41,7 @@ export function UserAuthForm({
 }: UserAuthFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
-  const { auth } = useAuthStore()
+  const { login } = useUserStore()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -59,23 +59,23 @@ export function UserAuthForm({
       success: () => {
         setIsLoading(false)
 
-        // Mock successful authentication with expiry computed at success time
-        const mockUser = {
-          accountNo: 'ACC001',
-          email: data.email,
-          role: ['user'],
-          exp: Date.now() + 24 * 60 * 60 * 1000, // 24 hours from now
+        // Mock 用户信息
+        const mockUserInfo = {
+          _id: '1',
+          phone: '13800138000',
+          name: data.email.split('@')[0],
+          role: 'user',
+          status: 'active',
         }
 
-        // Set user and access token
-        auth.setUser(mockUser)
-        auth.setAccessToken('mock-access-token')
+        // 登录成功，保存 token 和用户信息
+        login('mock-access-token', mockUserInfo)
 
-        // Redirect to the stored location or default to dashboard
+        // 跳转到目标页面或首页
         const targetPath = redirectTo || '/'
         navigate({ to: targetPath, replace: true })
 
-        return `欢迎回来，${data.email}！`
+        return `欢迎回来，${mockUserInfo.name}！`
       },
       error: '登录失败',
     })

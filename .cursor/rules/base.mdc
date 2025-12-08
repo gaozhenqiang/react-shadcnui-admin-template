@@ -207,7 +207,11 @@ const {
 
 # 注意事项
 
-1. 每次开发啥功能必须要去 `src\components` 查看是否有可用的全局组件 。
+1. 每次开发功能必须要去 `src\components` 查看是否有可用的全局组件，不要重复开发。
 2. 如果加了全局组件，必须在 `src\components\README.md` 添加文档。
 3. 创建页面注意参考文档 `src\docs\开发注意事项.md`
 4. 如果有表单，去 `src\lib\regulars.ts`找一下有没有对应的正则校验，最典型的，手机号、身份证号码。
+5. 每次开发功能必须要去 `src\lib` 查看是否有可用的全局方法，不要重复开发。
+6. 每次开发功能必须要去 `src\stores` 查看是否有可用的全局store，不要重复开发。
+7. 如果加了全局store，必须在 `src\stores\README.md` 添加文档。
+8. 如果加了全局方法，必须在 `src\lib\README.md` 添加文档。

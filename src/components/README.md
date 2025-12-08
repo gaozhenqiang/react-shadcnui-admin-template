@@ -19,30 +19,19 @@
 
 **路径**: `@/components/file-upload`
 
-用于上传文件到 OSS，支持进度显示、文件类型验证、图片/视频预览。
+用于上传文件到 OSS，支持**拖拽上传**、进度显示、文件类型验证、图片/视频预览。
 
 ### 基础用法
 
 ```tsx
 import { FileUpload } from '@/components/file-upload'
-import { getCourseFileUploadUrlApi } from '@/api/course'
 
 function MyComponent() {
-  const getUploadUrl = async (fileType: string) => {
-    const res = await getCourseFileUploadUrlApi(fileType)
-    return {
-      uploadUrl: res.uploadUrl,
-      fileUrl: res.fileUrl,
-      headers: res.headers,
-    }
-  }
-
   return (
     <FileUpload
       accept={['.mp4', '.webm']}
-      getUploadUrl={getUploadUrl}
-      onSuccess={(fileUrl, fileName) => {
-        console.log('上传成功:', fileUrl, fileName)
+      onSuccess={(info) => {
+        console.log('上传成功:', info.fileUrl, info.fileName)
       }}
       buttonText='选择视频'
       maxSize={2000} // 最大 2GB
@@ -51,12 +40,14 @@ function MyComponent() {
 }
 ```
 
+> **注意**: `getUploadUrl` 已内置默认实现，大多数情况下无需传入。如需自定义上传地址获取逻辑，可传入自定义函数。
+
 ### Props
 
 | 属性 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `accept` | `string[]` | `[]` | 允许的文件扩展名，如 `['.mp4', '.pdf']` |
-| `getUploadUrl` | `(fileType: string) => Promise<{uploadUrl, fileUrl, headers}>` | 必填 | 获取上传URL的函数 |
+| `getUploadUrl` | `(fileType: string) => Promise<{uploadUrl, fileUrl, headers}>` | 内置默认 | 获取上传URL的函数（可选，默认使用内置函数） |
 | `onSuccess` | `(info: FileUploadSuccessInfo) => void` | - | 上传成功回调 |
 | `onError` | `(error: Error) => void` | - | 上传失败回调 |
 | `onClear` | `() => void` | - | 清除文件回调 |
@@ -68,6 +59,40 @@ function MyComponent() {
 | `className` | `string` | `''` | 自定义类名 |
 | `enablePreview` | `boolean` | `true` | 是否启用预览（图片/视频） |
 | `previewType` | `'auto' \| 'image' \| 'video' \| 'none'` | `'auto'` | 预览类型 |
+| `imageValidation` | `ImageValidationConfig` | - | 图片尺寸校验配置（仅对图片文件生效） |
+
+### ImageValidationConfig
+
+用于校验图片尺寸的配置：
+
+```typescript
+interface ImageValidationConfig {
+  aspectRatio: number          // 期望的宽高比（宽/高），如 5/7 表示一寸照片
+  aspectRatioTolerance?: number // 宽高比容差，默认 0.1 表示 ±10%
+  minWidth?: number            // 最小图片宽度（像素）
+  minHeight?: number           // 最小图片高度（像素）
+  errorMessage?: string        // 自定义错误提示
+}
+```
+
+**使用示例（一寸证件照）：**
+
+```tsx
+<FileUpload
+  getUploadUrl={getUploadUrl}
+  accept={['.jpg', '.jpeg', '.png']}
+  maxSize={2}
+  buttonText='选择证件照'
+  imageValidation={{
+    aspectRatio: 5 / 7,           // 一寸照片宽高比
+    aspectRatioTolerance: 0.1,    // ±10% 容差
+    minWidth: 148,                // 最小宽度
+    minHeight: 207,               // 最小高度
+    errorMessage: '请上传一寸证件照，宽高比应约为 5:7',
+  }}
+  onSuccess={(info) => console.log(info.fileUrl)}
+/>
+```
 
 ### FileUploadSuccessInfo
 
@@ -213,76 +238,6 @@ import { DataTablePagination } from '@/components/data-table'
 | `onPageChange` | `(pageIndex: number) => void` | 页码变化回调 |
 | `onPageSizeChange` | `(pageSize: number) => void` | 每页数量变化回调 |
 
----
-
-## ProjectSelector 项目选择器组件
-
-**路径**: `@/components/project-selector`
-
-用于远程搜索选择报考项目，基于 Command + Popover 组件实现。
-
-### 基础用法
-
-```tsx
-import ProjectSelector from '@/components/project-selector'
-
-function MyComponent() {
-  const [projectId, setProjectId] = useState<string>()
-
-  return (
-    <ProjectSelector
-      value={projectId}
-      onChange={(id, project) => {
-        setProjectId(id)
-        console.log('选中项目:', project)
-      }}
-      placeholder='选择报考项目...'
-    />
-  )
-}
-```
-
-### Props
-
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `value` | `string` | - | 选中的项目ID |
-| `onChange` | `(projectId: string \| undefined, project?: Project) => void` | - | 选中变化回调 |
-| `placeholder` | `string` | `'选择报考项目...'` | 占位符文本 |
-| `disabled` | `boolean` | `false` | 是否禁用 |
-| `allowClear` | `boolean` | `true` | 是否允许清空 |
-
-### 示例：表单中使用
-
-```tsx
-<FormField
-  control={form.control}
-  name='projectId'
-  render={({ field }) => (
-    <FormItem>
-      <FormLabel>关联报考项目</FormLabel>
-      <FormControl>
-        <ProjectSelector
-          value={field.value}
-          onChange={(projectId) => field.onChange(projectId || '')}
-          placeholder='选择关联的报考项目'
-        />
-      </FormControl>
-      <FormMessage />
-    </FormItem>
-  )}
-/>
-```
-
-### 示例：作为筛选器使用
-
-```tsx
-<ProjectSelector
-  value={projectId}
-  onChange={handleProjectChange}
-  placeholder='筛选报考项目'
-/>
-```
 
 ---
 
@@ -355,101 +310,6 @@ function MyComponent() {
 
 ---
 
-## QuestionBankSelector 题库选择器组件
-
-**路径**: `@/components/question-bank-selector`
-
-用于远程搜索选择题库，基于 Command + Popover 组件实现。
-
-### 基础用法
-
-```tsx
-import QuestionBankSelector from '@/components/question-bank-selector'
-
-function MyComponent() {
-  const [bankId, setBankId] = useState<string>()
-
-  return (
-    <QuestionBankSelector
-      value={bankId}
-      onChange={(id, bank) => {
-        setBankId(id)
-        console.log('选中题库:', bank)
-      }}
-      placeholder='选择题库...'
-    />
-  )
-}
-```
-
-### Props
-
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `value` | `string` | - | 选中的题库ID |
-| `onChange` | `(bankId: string \| undefined, bank?: QuestionBank) => void` | - | 选中变化回调 |
-| `placeholder` | `string` | `'选择题库...'` | 占位符文本 |
-| `disabled` | `boolean` | `false` | 是否禁用 |
-| `allowClear` | `boolean` | `true` | 是否允许清空 |
-| `courseId` | `string` | - | 按课程ID筛选题库 |
-
-### 特点
-
-- 支持远程搜索题库名称
-- 显示题库所属课程信息
-- 支持清空选中
-- 自动加载已选题库信息
-- 支持按课程ID筛选题库
-
-### 示例：在表单中使用
-
-```tsx
-<FormField
-  control={form.control}
-  name='questionBankId'
-  render={({ field }) => (
-    <FormItem>
-      <FormLabel>所属题库 *</FormLabel>
-      <FormControl>
-        <QuestionBankSelector
-          value={field.value}
-          onChange={(bankId) => field.onChange(bankId || '')}
-          placeholder='选择所属题库...'
-          allowClear={false}
-        />
-      </FormControl>
-      <FormMessage />
-    </FormItem>
-  )}
-/>
-```
-
-### 示例：在表格筛选中使用
-
-```tsx
-<div className='w-[200px]'>
-  <QuestionBankSelector
-    value={bankId}
-    onChange={handleBankChange}
-    placeholder='筛选题库'
-  />
-</div>
-```
-
-### 示例：按课程筛选题库
-
-```tsx
-// 当 courseId 变化时，会自动清空已选题库（如果不属于该课程）
-<QuestionBankSelector
-  value={bankId}
-  onChange={handleBankChange}
-  courseId={selectedCourseId}
-  placeholder='选择题库...'
-/>
-```
-
----
-
 ## MediaPreview 媒体预览组件
 
 **路径**: `@/components/media-preview`
@@ -510,65 +370,6 @@ function MyComponent() {
     height={40}
   />
 )}
-```
-
----
-
-## StudentSelector 学员选择器组件
-
-**路径**: `@/components/student-selector`
-
-用于远程搜索选择学员，基于 Command + Popover 组件实现。
-
-### 基础用法
-
-```tsx
-import StudentSelector from '@/components/student-selector'
-
-function MyComponent() {
-  const [studentId, setStudentId] = useState<string>()
-
-  return (
-    <StudentSelector
-      value={studentId}
-      onChange={(id, student) => {
-        setStudentId(id)
-        console.log('选中学员:', student)
-      }}
-      placeholder='选择学员...'
-    />
-  )
-}
-```
-
-### Props
-
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `value` | `string` | - | 选中的学员ID |
-| `onChange` | `(studentId: string \| undefined, student?: User) => void` | - | 选中变化回调 |
-| `placeholder` | `string` | `'选择学员...'` | 占位符文本 |
-| `disabled` | `boolean` | `false` | 是否禁用 |
-| `allowClear` | `boolean` | `true` | 是否允许清空 |
-| `width` | `number \| string` | `'100%'` | 自定义宽度 |
-
-### 特点
-
-- 支持远程搜索学员姓名或手机号
-- 显示学员姓名、手机号和邮箱
-- 支持清空选中
-- 自动加载已选学员信息
-- 支持自定义宽度
-
-### 示例：作为筛选器使用
-
-```tsx
-<StudentSelector
-  value={userId}
-  onChange={handleStudentChange}
-  placeholder='选择学员筛选'
-  width={200}
-/>
 ```
 
 ---
